@@ -146,6 +146,160 @@ test("builds Markdown into the complete static output", async () => {
   }
 });
 
+function postMarkdown(title: string, date: string, summary: string): string {
+  return `---
+title: ${title}
+date: ${date}
+tags: typescript
+summary: ${summary}
+draft: false
+---
+
+Body
+`;
+}
+
+test("renders prev/next navigation between posts", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "my-blog-nav-"));
+  const contentDir = path.join(root, "content");
+  const outputDir = path.join(root, "public");
+  await mkdir(contentDir);
+
+  try {
+    await writeFile(path.join(contentDir, "older-post.md"), postMarkdown("Older Post", "2026-05-01", "Older summary."));
+    await writeFile(path.join(contentDir, "newer-post.md"), postMarkdown("Newer Post", "2026-06-01", "Newer summary."));
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: path.resolve("templates"),
+      outputDir,
+    });
+    assert.deepEqual(result, { ok: true, postCount: 2 });
+
+    const newerHtml = await readFile(path.join(outputDir, "posts", "newer-post", "index.html"), "utf8");
+    assert.match(newerHtml, /<a href="\/posts\/older-post\/">&#8592; Older Post<\/a>/);
+    assert.doesNotMatch(newerHtml, /\/posts\/newer-post\//);
+
+    const olderHtml = await readFile(path.join(outputDir, "posts", "older-post", "index.html"), "utf8");
+    assert.match(olderHtml, /<a href="\/posts\/newer-post\/">Newer Post &#8594;<\/a>/);
+    assert.doesNotMatch(olderHtml, /\/posts\/older-post\//);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("groups the archive by year, newest first", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "my-blog-archive-"));
+  const contentDir = path.join(root, "content");
+  const outputDir = path.join(root, "public");
+  await mkdir(contentDir);
+
+  try {
+    await writeFile(path.join(contentDir, "old-note.md"), postMarkdown("Old Note", "2025-11-20", "From 2025."));
+    await writeFile(path.join(contentDir, "new-note.md"), postMarkdown("New Note", "2026-01-15", "From 2026."));
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: path.resolve("templates"),
+      outputDir,
+    });
+    assert.deepEqual(result, { ok: true, postCount: 2 });
+
+    const archiveHtml = await readFile(path.join(outputDir, "archive.html"), "utf8");
+    assert.match(archiveHtml, /<h2 class="post-title">2026<\/h2>/);
+    assert.match(archiveHtml, /<h2 class="post-title">2025<\/h2>/);
+    const y2026 = archiveHtml.indexOf(">2026<");
+    const y2025 = archiveHtml.indexOf(">2025<");
+    const newNote = archiveHtml.indexOf("/posts/new-note/");
+    const oldNote = archiveHtml.indexOf("/posts/old-note/");
+    assert.ok(y2026 >= 0 && y2025 >= 0 && newNote >= 0 && oldNote >= 0, "archive must contain both year headings and both post links");
+    assert.ok(y2026 < newNote, "the 2026 post must be rendered under the 2026 heading");
+    assert.ok(newNote < y2025, "the 2026 group must be rendered before the 2025 group");
+    assert.ok(y2025 < oldNote, "the 2025 post must be rendered under the 2025 heading");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// Design rule (inherited from the original Odin implementation): posts are
+// ordered date-DESCENDING, and among posts sharing a date the tiebreak is
+// slug-ASCENDING — the smaller slug sorts first (alpha before beta). Do not
+// "fix" this backwards: beta must NOT come first on a shared date.
+test("sorts date-descending with slug-ascending tiebreak (smaller slug first)", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "my-blog-order-"));
+  const contentDir = path.join(root, "content");
+  const outputDir = path.join(root, "public");
+  await mkdir(contentDir);
+
+  try {
+    await writeFile(path.join(contentDir, "gamma.md"), postMarkdown("Gamma", "2026-01-01", "Oldest post."));
+    await writeFile(path.join(contentDir, "alpha.md"), postMarkdown("Alpha", "2026-03-01", "Tied post A."));
+    await writeFile(path.join(contentDir, "beta.md"), postMarkdown("Beta", "2026-03-01", "Tied post B."));
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: path.resolve("templates"),
+      outputDir,
+    });
+    assert.deepEqual(result, { ok: true, postCount: 3 });
+
+    const indexHtml = await readFile(path.join(outputDir, "index.html"), "utf8");
+    const beta = indexHtml.indexOf("/posts/beta/");
+    const alpha = indexHtml.indexOf("/posts/alpha/");
+    const gamma = indexHtml.indexOf("/posts/gamma/");
+    assert.ok(beta >= 0 && alpha >= 0 && gamma >= 0, "all three posts must be listed");
+    // slug-ascending tiebreak: smaller slug sorts first among same-date posts.
+    assert.ok(alpha < beta, "on a shared date, 'alpha' (smaller slug) must come before 'beta'");
+    assert.ok(beta < gamma, "the older post must come last");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("renders complete RSS items", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "my-blog-rss-"));
+  const contentDir = path.join(root, "content");
+  const outputDir = path.join(root, "public");
+  await mkdir(contentDir);
+
+  try {
+    await writeFile(path.join(contentDir, "rss-one.md"), postMarkdown("RSS One", "2026-05-02", "First summary."));
+    await writeFile(path.join(contentDir, "rss-two.md"), postMarkdown("RSS Two", "2026-04-02", "Second summary."));
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: path.resolve("templates"),
+      outputDir,
+    });
+    assert.deepEqual(result, { ok: true, postCount: 2 });
+
+    const rss = await readFile(path.join(outputDir, "rss.xml"), "utf8");
+    const itemOne = [
+      "<item>",
+      "<title>RSS One</title>",
+      "<link>http://127.0.0.1:8080/posts/rss-one/</link>",
+      '<guid isPermaLink="true">http://127.0.0.1:8080/posts/rss-one/</guid>',
+      "<pubDate>02 May 2026 00:00:00 GMT</pubDate>",
+      "<description>First summary.</description>",
+      "</item>",
+    ].join("\n");
+    const itemTwo = [
+      "<item>",
+      "<title>RSS Two</title>",
+      "<link>http://127.0.0.1:8080/posts/rss-two/</link>",
+      '<guid isPermaLink="true">http://127.0.0.1:8080/posts/rss-two/</guid>',
+      "<pubDate>02 Apr 2026 00:00:00 GMT</pubDate>",
+      "<description>Second summary.</description>",
+      "</item>",
+    ].join("\n");
+    assert.ok(rss.includes(itemOne), "rss.xml must contain the complete item for rss-one");
+    assert.ok(rss.includes(itemTwo), "rss.xml must contain the complete item for rss-two");
+    assert.ok(rss.indexOf(itemOne) < rss.indexOf(itemTwo), "RSS items must be ordered newest first");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("does not build when any content file is invalid", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "my-blog-invalid-"));
   const contentDir = path.join(root, "content");
