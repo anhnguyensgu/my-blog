@@ -30,7 +30,7 @@ export function todayString(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-async function createPost(contentDir: string, title: string): Promise<void> {
+async function createPost(contentDir: string, title: string): Promise<string> {
   const slug = slugFromTitle(title);
   if (!SLUG_PATTERN.test(slug)) throw new Error(`could not derive a valid slug from '${title}'`);
 
@@ -38,17 +38,17 @@ async function createPost(contentDir: string, title: string): Promise<void> {
   const filename = path.join(contentDir, `${slug}.md`);
   const body = `---\ntitle: ${title}\ndate: ${todayString()}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
   await writeFile(filename, body, { flag: "wx" });
-  console.log(`created ${filename}`);
+  return filename;
 }
 
 const COMMANDS = {
   build: {
-    args: "",
+    usage: "",
     description: "validate content and regenerate public/",
     run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
       if (commandArgs.length > 0) return 2;
       const result = await buildSite(options, DEFAULT_SITE);
-      if (result.issues.length > 0) {
+      if (!result.ok) {
         reportIssues(result.issues);
         return 1;
       }
@@ -57,7 +57,7 @@ const COMMANDS = {
     },
   },
   validate: {
-    args: "",
+    usage: "",
     description: "validate content without writing files",
     run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
       if (commandArgs.length > 0) return 2;
@@ -71,12 +71,13 @@ const COMMANDS = {
     },
   },
   new: {
-    args: "<title>",
+    usage: "<title>",
     description: "create a draft in content/",
     run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
       const title = commandArgs.join(" ").trim();
       if (!title) return 2;
-      await createPost(options.contentDir, title);
+      const filename = await createPost(options.contentDir, title);
+      console.log(`created ${filename}`);
       return 0;
     },
   },
@@ -85,7 +86,7 @@ const COMMANDS = {
 function printUsage(): void {
   console.error("usage: my-blog <command>\n\ncommands:");
   for (const [name, definition] of Object.entries(COMMANDS)) {
-    const invocation = [name, definition.args].join(" ").trimEnd();
+    const invocation = [name, definition.usage].join(" ").trimEnd();
     console.error(`  ${invocation.padEnd(20)} ${definition.description}`);
   }
 }

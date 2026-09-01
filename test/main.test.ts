@@ -109,7 +109,7 @@ test("builds Markdown into the complete static output", async () => {
       templateDir: path.resolve("templates"),
       outputDir,
     });
-    assert.deepEqual(result, { postCount: 1, issues: [] });
+    assert.deepEqual(result, { ok: true, postCount: 1 });
 
     const postHtml = await readFile(path.join(outputDir, "posts", "test-post", "index.html"), "utf8");
     assert.match(postHtml, /<h2>Hello<\/h2>/);
@@ -147,6 +147,7 @@ test("does not build when any content file is invalid", async () => {
       templateDir: path.resolve("templates"),
       outputDir,
     });
+    assert.ok(!result.ok);
     assert.equal(result.issues.length, 2);
     assert.match(result.issues[0]?.message ?? "", /filename/);
     assert.match(result.issues[1]?.message ?? "", /summary/);

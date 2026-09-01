@@ -40,9 +40,12 @@ interface PostRowView {
 }
 
 interface IndexView extends BaseView {
-  home_heading: string;
-  home_intro: string;
   posts: PostRowView[];
+}
+
+interface PostNavigationView {
+  older?: PostRowView | undefined;
+  newer?: PostRowView | undefined;
 }
 
 interface PostPageView extends BaseView {
@@ -52,9 +55,7 @@ interface PostPageView extends BaseView {
   tag_path: string;
   reading_time: string;
   content_html: string;
-  has_navigation: boolean;
-  older?: PostRowView | undefined;
-  newer?: PostRowView | undefined;
+  navigation?: PostNavigationView | undefined;
 }
 
 interface ArchiveGroupView {
@@ -69,7 +70,6 @@ interface ArchiveView extends BaseView {
 interface ErrorView extends BaseView {
   heading: string;
   message: string;
-  detail?: string | undefined;
 }
 
 type PageView = IndexView | PostPageView | ArchiveView | ErrorView;
@@ -156,18 +156,20 @@ function renderPostPage(
     tag_path: post.header.tags.join(" / "),
     reading_time: `${post.readingMinutes} min`,
     content_html: post.bodyHtml,
-    has_navigation: Boolean(older || newer),
-    older: older ? postView(older) : undefined,
-    newer: newer ? postView(newer) : undefined,
+    ...(older || newer
+      ? {
+          navigation: {
+            older: older ? postView(older) : undefined,
+            newer: newer ? postView(newer) : undefined,
+          },
+        }
+      : {}),
   });
 }
 
 function renderIndex(templates: Templates, posts: Post[], site: SiteConfig): string {
   return renderWithLayout(templates, "index", {
     ...baseData(site, `${site.site_name} - ${site.site_title}`),
-    home_heading: "Notes from the low-level web.",
-    home_intro:
-      "A running notebook about building a small blog engine in Odin, learning the web from raw TCP upward, and keeping the design readable enough for real study.",
     posts: posts.map(postView),
   });
 }
@@ -227,12 +229,16 @@ function renderNotFound(templates: Templates, site: SiteConfig): string {
   });
 }
 
+export type BuildResult =
+  | { ok: true; postCount: number }
+  | { ok: false; issues: ValidationIssue[] };
+
 export async function buildSite(
   options: BuildOptions,
   site: SiteConfig = DEFAULT_SITE,
-): Promise<{ postCount: number; issues: ValidationIssue[] }> {
+): Promise<BuildResult> {
   const { posts, issues } = await loadPosts(options.contentDir);
-  if (issues.length > 0) return { postCount: 0, issues };
+  if (issues.length > 0) return { ok: false, issues };
 
   const templates = await loadTemplates(options.templateDir);
   const postPages = posts.map((post, index) => ({
@@ -260,5 +266,5 @@ export async function buildSite(
     writeFile(path.join(options.outputDir, "404.html"), notFoundHtml),
   ]);
 
-  return { postCount: posts.length, issues: [] };
+  return { ok: true, postCount: posts.length };
 }
