@@ -1,0 +1,16 @@
+			<article class="article">
+				<header class="article-header">
+				<p class="breadcrumb"><a href="{{site.home_url}}">Latest</a> / {{tag_path}}</p>
+					<h1 class="article-title">{{title}}</h1>
+					<p class="meta">{{date}} &middot; {{tags}} &middot; {{reading_time}}</p>
+				</header>
+
+				<div class="article-body">
+{{{content_html}}}
+				</div>
+
+				<nav class="post-nav" aria-label="Post navigation">
+					{{{previous_link}}}
+					{{{next_link}}}
+				</nav>
+			</article>

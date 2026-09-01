@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{page_title}}</title>
+	<link rel="stylesheet" href="{{site.asset_path}}style.css?v={{site.asset_version}}">
+</head>
+<body>
+	<div class="site">
+		<!-- <aside class="sidebar" aria-label="Site"> -->
+		<!-- 	<a class="brand" href="{{site.home_url}}" aria-label="{{site.site_name}} home"> -->
+		<!-- 		<span class="brand-mark">{{site.brand_mark}}</span> -->
+		<!-- 		<span> -->
+		<!-- 			<span class="brand-name">{{site.site_name}}</span> -->
+		<!-- 			<span class="brand-role">{{site.site_role}}</span> -->
+		<!-- 		</span> -->
+		<!-- 	</a> -->
+		<!---->
+		<!-- 	<nav class="nav" aria-label="Primary navigation"> -->
+		<!-- 		<a href="{{site.home_url}}"{{{latest_current_attr}}}>Latest</a> -->
+		<!-- 		<a href="{{site.archive_url}}">Archive</a> -->
+		<!-- 		<a href="{{site.tags_url}}">Tags</a> -->
+		<!-- 		<a href="{{site.rss_url}}">RSS</a> -->
+		<!-- 	</nav> -->
+		<!---->
+		<!-- 	<p class="sidebar-note">{{site.site_note}}</p> -->
+		<!-- </aside> -->
+
+		<main class="main">
+{{content}}
+		</main>
+	</div>
+</body>
+</html>
