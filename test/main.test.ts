@@ -48,6 +48,20 @@ test("strictly validates front matter", () => {
   );
 });
 
+test("drafts may omit summary, published posts may not", () => {
+  const draftOmitted = parseMarkdownPost("---\ntitle: Draft\ndate: 2026-05-02\ndraft: true\n---\n\nBody\n", "content/draft.md");
+  assert.ok(draftOmitted.ok);
+  assert.equal(draftOmitted.post.header.draft, true);
+
+  const draftEmpty = parseMarkdownPost("---\ntitle: Draft\ndate: 2026-05-02\nsummary:\ndraft: true\n---\n\nBody\n", "content/draft.md");
+  assert.ok(draftEmpty.ok);
+  assert.equal(draftEmpty.post.header.summary, "");
+
+  const published = parseMarkdownPost("---\ntitle: Published\ndate: 2026-05-02\ndraft: false\n---\n\nBody\n", "content/published.md");
+  assert.ok(!published.ok);
+  assert.deepEqual(published.issues.map((problem) => problem.message), ["missing required front-matter key 'summary'"]);
+});
+
 test("new creates a valid draft", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "my-blog-new-"));
 

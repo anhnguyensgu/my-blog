@@ -88,9 +88,9 @@ export function parseMarkdownPost(markdown: string, sourcePath: string): ParseRe
   const draftEntry = values.get("draft");
   const isDraft = draftEntry?.value === "true";
   for (const key of REQUIRED_KEYS) {
+    if (isDraft && key === "summary") continue;
     const entry = values.get(key);
-    const emptyDraftSummary = isDraft && key === "summary";
-    if (!entry || (!emptyDraftSummary && entry.value === "")) {
+    if (!entry || entry.value === "") {
       issues.push(issue(sourcePath, entry?.line ?? 1, `missing required front-matter key '${key}'`));
     }
   }
