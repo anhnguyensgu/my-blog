@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { SLUG_PATTERN, loadPosts, type ValidationIssue } from "./content.js";
-import { buildSite } from "./render.js";
+import { DEFAULT_SITE, buildSite } from "./render.js";
 
 export interface BuildOptions {
   contentDir: string;
@@ -42,7 +42,7 @@ const COMMANDS = {
     description: "validate content and regenerate public/",
     run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
       if (commandArgs.length > 0) return 2;
-      const result = await buildSite(options);
+      const result = await buildSite(options, DEFAULT_SITE);
       if (result.issues.length > 0) {
         reportIssues(result.issues);
         return 1;

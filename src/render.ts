@@ -4,7 +4,17 @@ import Mustache from "mustache";
 import { loadPosts, type Post, type ValidationIssue } from "./content.js";
 import type { BuildOptions } from "./cli.js";
 
-export const SITE = {
+export interface SiteConfig {
+  site_name: string;
+  site_title: string;
+  site_note: string;
+  home_url: string;
+  asset_path: string;
+  asset_version: string;
+  site_url: string;
+}
+
+export const DEFAULT_SITE: SiteConfig = {
   site_name: "Anh Nguyen",
   site_title: "Notes from Odin and systems work",
   site_note: "Short notes from building tools, servers, runtimes, and experiments in Odin.",
@@ -12,12 +22,12 @@ export const SITE = {
   asset_path: "/",
   asset_version: "4",
   site_url: "http://127.0.0.1:8080",
-} as const;
+};
 
 const RSS_MAX_ITEMS = 20;
 
 interface BaseView {
-  site: typeof SITE;
+  site: SiteConfig;
   page_title: string;
 }
 
@@ -117,8 +127,8 @@ function escapeXml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-function baseData(pageTitle: string): BaseView {
-  return { site: SITE, page_title: pageTitle };
+function baseData(site: SiteConfig, pageTitle: string): BaseView {
+  return { site, page_title: pageTitle };
 }
 
 function postView(post: Post): PostRowView {
@@ -136,9 +146,10 @@ function renderPostPage(
   post: Post,
   older: Post | undefined,
   newer: Post | undefined,
+  site: SiteConfig,
 ): string {
   return renderWithLayout(templates, "post", {
-    ...baseData(`${post.header.title} - ${SITE.site_name}`),
+    ...baseData(site, `${post.header.title} - ${site.site_name}`),
     title: post.header.title,
     date: post.header.date,
     tags: post.header.tags.join(", "),
@@ -151,9 +162,9 @@ function renderPostPage(
   });
 }
 
-function renderIndex(templates: Templates, posts: Post[]): string {
+function renderIndex(templates: Templates, posts: Post[], site: SiteConfig): string {
   return renderWithLayout(templates, "index", {
-    ...baseData(`${SITE.site_name} - ${SITE.site_title}`),
+    ...baseData(site, `${site.site_name} - ${site.site_title}`),
     home_heading: "Notes from the low-level web.",
     home_intro:
       "A running notebook about building a small blog engine in Odin, learning the web from raw TCP upward, and keeping the design readable enough for real study.",
@@ -161,7 +172,7 @@ function renderIndex(templates: Templates, posts: Post[]): string {
   });
 }
 
-function renderArchive(templates: Templates, posts: Post[]): string {
+function renderArchive(templates: Templates, posts: Post[], site: SiteConfig): string {
   const grouped = new Map<string, Post[]>();
   for (const post of posts) {
     const year = post.header.date.slice(0, 4);
@@ -172,14 +183,14 @@ function renderArchive(templates: Templates, posts: Post[]): string {
 
   const groups = [...grouped].map(([year, yearPosts]) => ({ year, posts: yearPosts.map(postView) }));
   return renderWithLayout(templates, "archive", {
-    ...baseData(`Archive - ${SITE.site_name}`),
+    ...baseData(site, `Archive - ${site.site_name}`),
     groups,
   });
 }
 
-function renderRss(posts: Post[]): string {
+function renderRss(posts: Post[], site: SiteConfig): string {
   const items = posts.slice(0, RSS_MAX_ITEMS).map((post) => {
-    const url = `${SITE.site_url}${post.url}`;
+    const url = `${site.site_url}${post.url}`;
     const [year, month, day] = post.header.date.split("-");
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const date = `${day} ${monthNames[Number(month) - 1]} ${year} 00:00:00 GMT`;
@@ -198,9 +209,9 @@ function renderRss(posts: Post[]): string {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<rss version="2.0">',
     "<channel>",
-    `<title>${escapeXml(SITE.site_title)}</title>`,
-    `<link>${escapeXml(`${SITE.site_url}/`)}</link>`,
-    `<description>${escapeXml(SITE.site_note)}</description>`,
+    `<title>${escapeXml(site.site_title)}</title>`,
+    `<link>${escapeXml(`${site.site_url}/`)}</link>`,
+    `<description>${escapeXml(site.site_note)}</description>`,
     ...items,
     "</channel>",
     "</rss>",
@@ -208,26 +219,29 @@ function renderRss(posts: Post[]): string {
   ].join("\n");
 }
 
-function renderNotFound(templates: Templates): string {
+function renderNotFound(templates: Templates, site: SiteConfig): string {
   return renderWithLayout(templates, "error", {
-    ...baseData(`Page Not Found - ${SITE.site_name}`),
+    ...baseData(site, `Page Not Found - ${site.site_name}`),
     heading: "Page Not Found",
     message: "The page you requested does not exist.",
   });
 }
 
-export async function buildSite(options: BuildOptions): Promise<{ postCount: number; issues: ValidationIssue[] }> {
+export async function buildSite(
+  options: BuildOptions,
+  site: SiteConfig = DEFAULT_SITE,
+): Promise<{ postCount: number; issues: ValidationIssue[] }> {
   const { posts, issues } = await loadPosts(options.contentDir);
   if (issues.length > 0) return { postCount: 0, issues };
 
   const templates = await loadTemplates(options.templateDir);
   const postPages = posts.map((post, index) => ({
     post,
-    html: renderPostPage(templates, post, posts[index + 1], posts[index - 1]),
+    html: renderPostPage(templates, post, posts[index + 1], posts[index - 1], site),
   }));
-  const indexHtml = renderIndex(templates, posts);
-  const archiveHtml = renderArchive(templates, posts);
-  const notFoundHtml = renderNotFound(templates);
+  const indexHtml = renderIndex(templates, posts, site);
+  const archiveHtml = renderArchive(templates, posts, site);
+  const notFoundHtml = renderNotFound(templates, site);
 
   await mkdir(options.outputDir, { recursive: true });
   await rm(path.join(options.outputDir, "posts"), { recursive: true, force: true });
@@ -242,7 +256,7 @@ export async function buildSite(options: BuildOptions): Promise<{ postCount: num
   await Promise.all([
     writeFile(path.join(options.outputDir, "index.html"), indexHtml),
     writeFile(path.join(options.outputDir, "archive.html"), archiveHtml),
-    writeFile(path.join(options.outputDir, "rss.xml"), renderRss(posts)),
+    writeFile(path.join(options.outputDir, "rss.xml"), renderRss(posts, site)),
     writeFile(path.join(options.outputDir, "404.html"), notFoundHtml),
   ]);
 
