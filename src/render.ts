@@ -16,20 +16,70 @@ export const SITE = {
 
 const RSS_MAX_ITEMS = 20;
 
-interface TemplateData {
-  [key: string]: unknown;
+interface BaseView {
   site: typeof SITE;
   page_title: string;
 }
 
-interface Templates {
-  layout: string;
+interface PostRowView {
+  url: string;
+  date: string;
+  title: string;
+  summary: string;
+  tags: string[];
+}
+
+interface IndexView extends BaseView {
+  home_heading: string;
+  home_intro: string;
+  posts: PostRowView[];
+}
+
+interface PostPageView extends BaseView {
+  title: string;
+  date: string;
+  tags: string;
+  tag_path: string;
+  reading_time: string;
+  content_html: string;
+  has_navigation: boolean;
+  older?: PostRowView | undefined;
+  newer?: PostRowView | undefined;
+}
+
+interface ArchiveGroupView {
+  year: string;
+  posts: PostRowView[];
+}
+
+interface ArchiveView extends BaseView {
+  groups: ArchiveGroupView[];
+}
+
+interface ErrorView extends BaseView {
+  heading: string;
+  message: string;
+  detail?: string | undefined;
+}
+
+type PageView = IndexView | PostPageView | ArchiveView | ErrorView;
+
+interface PageTemplates {
   index: string;
   post: string;
   archive: string;
   error: string;
+}
+
+interface Fragments {
+  layout: string;
   postRow: string;
   tagBadge: string;
+}
+
+interface Templates {
+  pages: PageTemplates;
+  fragments: Fragments;
 }
 
 async function loadTemplates(templateDir: string): Promise<Templates> {
@@ -43,20 +93,19 @@ async function loadTemplates(templateDir: string): Promise<Templates> {
     load("post-row.html"),
     load("tag-badge.html"),
   ]);
-  return { layout, index, post, archive, error, postRow, tagBadge };
+  return {
+    pages: { index, post, archive, error },
+    fragments: { layout, postRow, tagBadge },
+  };
 }
 
-function renderWithLayout(
-  templates: Templates,
-  page: "index" | "post" | "archive" | "error",
-  data: TemplateData,
-): string {
+function renderWithLayout(templates: Templates, page: keyof PageTemplates, data: PageView): string {
   const partials = {
-    "post-row": templates.postRow,
-    "tag-badge": templates.tagBadge,
+    "post-row": templates.fragments.postRow,
+    "tag-badge": templates.fragments.tagBadge,
   };
-  const content = Mustache.render(templates[page], data, partials);
-  return Mustache.render(templates.layout, { ...data, content });
+  const content = Mustache.render(templates.pages[page], data, partials);
+  return Mustache.render(templates.fragments.layout, { ...data, content });
 }
 
 function escapeXml(value: string): string {
@@ -68,11 +117,11 @@ function escapeXml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-function baseData(pageTitle: string): TemplateData {
+function baseData(pageTitle: string): BaseView {
   return { site: SITE, page_title: pageTitle };
 }
 
-function postView(post: Post): object {
+function postView(post: Post): PostRowView {
   return {
     url: post.url,
     date: post.header.date,
