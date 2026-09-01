@@ -53,17 +53,19 @@ test("strictly validates front matter", () => {
 
 test("new creates a valid draft", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "my-blog-new-"));
-  const previousDirectory = process.cwd();
 
   try {
-    process.chdir(root);
-    assert.equal(await runCli(["new", "New Post"]), 0);
+    const options = {
+      contentDir: path.join(root, "content"),
+      templateDir: path.join(root, "templates"),
+      outputDir: path.join(root, "public"),
+    };
+    assert.equal(await runCli(["new", "New Post"], options), 0);
     const markdown = await readFile(path.join(root, "content", "new-post.md"), "utf8");
     const parsed = parseMarkdownPost(markdown, "content/new-post.md");
     assert.ok(parsed.ok);
     assert.equal(parsed.post.header.draft, true);
   } finally {
-    process.chdir(previousDirectory);
     await rm(root, { recursive: true, force: true });
   }
 });

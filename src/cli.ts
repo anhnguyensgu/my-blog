@@ -49,13 +49,16 @@ function printUsage(): void {
   }
 }
 
-export async function runCli(args: string[]): Promise<number> {
+export function defaultOptions(): BuildOptions {
   const root = process.cwd();
-  const options: BuildOptions = {
+  return {
     contentDir: path.join(root, "content"),
     templateDir: path.join(root, "templates"),
     outputDir: path.join(root, "public"),
   };
+}
+
+export async function runCli(args: string[], options: BuildOptions = defaultOptions()): Promise<number> {
   const [command, ...commandArgs] = args;
 
   switch (command) {
