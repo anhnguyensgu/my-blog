@@ -31,14 +31,15 @@ test("defines the complete command list", () => {
 
 test("strictly validates front matter", () => {
   const valid = parseMarkdownPost(VALID_POST, "content/test-post.md");
-  assert.equal(valid.issues.length, 0);
-  assert.equal(valid.post?.header.title, "Test Post");
-  assert.deepEqual(valid.post?.header.tags, ["typescript", "node"]);
+  assert.ok(valid.ok);
+  assert.equal(valid.post.header.title, "Test Post");
+  assert.deepEqual(valid.post.header.tags, ["typescript", "node"]);
 
   const invalid = parseMarkdownPost(
     `---\ntitle: Bad\ndate: 2026-02-30\ntag: typo\ndraft: yes\n---\n\nBody\n`,
     "content/bad.md",
   );
+  assert.ok(!invalid.ok);
   assert.deepEqual(
     invalid.issues.map((problem) => problem.message),
     [
@@ -59,8 +60,8 @@ test("new creates a valid draft", async () => {
     assert.equal(await runCli(["new", "New Post"]), 0);
     const markdown = await readFile(path.join(root, "content", "new-post.md"), "utf8");
     const parsed = parseMarkdownPost(markdown, "content/new-post.md");
-    assert.equal(parsed.issues.length, 0);
-    assert.equal(parsed.post?.header.draft, true);
+    assert.ok(parsed.ok);
+    assert.equal(parsed.post.header.draft, true);
   } finally {
     process.chdir(previousDirectory);
     await rm(root, { recursive: true, force: true });

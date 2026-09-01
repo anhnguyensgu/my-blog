@@ -28,10 +28,14 @@ export interface ValidationIssue {
   message: string;
 }
 
-export interface ParseResult {
-  post?: { header: PostHeader; bodyMarkdown: string };
-  issues: ValidationIssue[];
+export interface ParsedPost {
+  header: PostHeader;
+  bodyMarkdown: string;
 }
+
+export type ParseResult =
+  | { ok: true; post: ParsedPost }
+  | { ok: false; issues: ValidationIssue[] };
 
 function issue(sourcePath: string, line: number, message: string): ValidationIssue {
   return { path: sourcePath, line, message };
@@ -48,17 +52,17 @@ export function parseMarkdownPost(markdown: string, sourcePath: string): ParseRe
   const issues: ValidationIssue[] = [];
 
   if (lines[0] !== "---") {
-    return { issues: [issue(sourcePath, 1, "expected opening '---'")] };
+    return { ok: false, issues: [issue(sourcePath, 1, "expected opening '---'")] };
   }
 
   const closingIndex = lines.indexOf("---", 1);
   if (closingIndex < 0) {
-    return { issues: [issue(sourcePath, 1, "front matter is never closed with '---'")] };
+    return { ok: false, issues: [issue(sourcePath, 1, "front matter is never closed with '---'")] };
   }
 
   const values = new Map<string, { value: string; line: number }>();
-  for (let index = 1; index < closingIndex; index += 1) {
-    const rawLine = lines[index]!;
+  for (const [offset, rawLine] of lines.slice(1, closingIndex).entries()) {
+    const index = offset + 1;
     const trimmed = rawLine.trim();
     if (trimmed === "") continue;
 
@@ -100,14 +104,17 @@ export function parseMarkdownPost(markdown: string, sourcePath: string): ParseRe
     issues.push(issue(sourcePath, draftEntry.line, "draft must be 'true' or 'false'"));
   }
 
-  if (issues.length > 0) return { issues };
+  if (issues.length > 0) return { ok: false, issues };
 
+  // Required-key entries are guaranteed present here: any missing one pushed
+  // an issue above, so the fallbacks below are unreachable on success.
   return {
+    ok: true,
     post: {
       header: {
-        title: values.get("title")!.value,
-        date: values.get("date")!.value,
-        summary: values.get("summary")!.value,
+        title: values.get("title")?.value ?? "",
+        date: values.get("date")?.value ?? "",
+        summary: values.get("summary")?.value ?? "",
         tags: (values.get("tags")?.value ?? "")
           .split(",")
           .map((tag) => tag.trim())
@@ -116,7 +123,6 @@ export function parseMarkdownPost(markdown: string, sourcePath: string): ParseRe
       },
       bodyMarkdown: lines.slice(closingIndex + 1).join("\n"),
     },
-    issues,
   };
 }
 
@@ -145,8 +151,11 @@ export async function loadPosts(contentDir: string): Promise<{ posts: Post[]; is
 
     const markdown = await readFile(sourcePath, "utf8");
     const parsed = parseMarkdownPost(markdown, sourcePath);
-    issues.push(...parsed.issues);
-    if (!parsed.post || parsed.post.header.draft) continue;
+    if (!parsed.ok) {
+      issues.push(...parsed.issues);
+      continue;
+    }
+    if (parsed.post.header.draft) continue;
 
     posts.push({
       header: parsed.post.header,
