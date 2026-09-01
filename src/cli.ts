@@ -24,14 +24,19 @@ function slugFromTitle(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+export function todayString(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 async function createPost(contentDir: string, title: string): Promise<void> {
   const slug = slugFromTitle(title);
   if (!SLUG_PATTERN.test(slug)) throw new Error(`could not derive a valid slug from '${title}'`);
 
   await mkdir(contentDir, { recursive: true });
   const filename = path.join(contentDir, `${slug}.md`);
-  const today = new Date().toISOString().slice(0, 10);
-  const body = `---\ntitle: ${title}\ndate: ${today}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
+  const body = `---\ntitle: ${title}\ndate: ${todayString()}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
   await writeFile(filename, body, { flag: "wx" });
   console.log(`created ${filename}`);
 }

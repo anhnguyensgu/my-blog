@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import { buildSite, parseMarkdownPost, runCli } from "../src/blog.js";
+import { todayString } from "../src/cli.js";
 
 const VALID_POST = `---
 title: Test Post
@@ -61,6 +62,30 @@ test("new creates a valid draft", async () => {
     const parsed = parseMarkdownPost(markdown, "content/new-post.md");
     assert.ok(parsed.ok);
     assert.equal(parsed.post.header.draft, true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("new stamps the draft with the local calendar date", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "my-blog-date-"));
+
+  try {
+    const options = {
+      contentDir: path.join(root, "content"),
+      templateDir: path.join(root, "templates"),
+      outputDir: path.join(root, "public"),
+    };
+    const before = todayString();
+    await runCli(["new", "Dated Post"], options);
+    const markdown = await readFile(path.join(root, "content", "dated-post.md"), "utf8");
+    const stamped = /^date: (\d{4}-\d{2}-\d{2})$/m.exec(markdown)?.[1];
+    assert.ok(stamped, "draft must contain a date line in YYYY-MM-DD format");
+    const after = todayString();
+    assert.ok(
+      stamped === before || stamped === after,
+      `stamped date ${stamped} must be the local calendar date (${before} or ${after} if midnight crossed)`,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
