@@ -1,10 +1,12 @@
-					<a class="post-row" href="{{post_url}}">
+					<a class="post-row" href="{{{url}}}">
 						<span class="post-date">{{date}}</span>
-						<span>
+						<div>
 							<h2 class="post-title">{{title}}</h2>
 							<p class="post-summary">{{summary}}</p>
 							<span class="tags" aria-label="Tags">
-{{{tag_badges}}}
+{{#tags}}
+{{> tag-badge}}
+{{/tags}}
 							</span>
-						</span>
+						</div>
 					</a>
