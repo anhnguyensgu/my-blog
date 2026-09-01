@@ -11,7 +11,7 @@ export interface BuildOptions {
 
 function reportIssues(issues: ValidationIssue[]): void {
   for (const problem of issues) {
-    const location = problem.line > 0 ? `${problem.path}:${problem.line}` : problem.path;
+    const location = problem.line === undefined ? problem.path : `${problem.path}:${problem.line}`;
     console.error(`${location}: ${problem.message}`);
   }
   console.error(`${issues.length} error(s)`);
