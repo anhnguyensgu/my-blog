@@ -36,16 +36,52 @@ async function createPost(contentDir: string, title: string): Promise<void> {
   console.log(`created ${filename}`);
 }
 
-export const COMMANDS = [
-  { name: "build", arguments: "", description: "validate content and regenerate public/" },
-  { name: "validate", arguments: "", description: "validate content without writing files" },
-  { name: "new", arguments: "<title>", description: "create a draft in content/" },
-] as const;
+const COMMANDS = {
+  build: {
+    args: "",
+    description: "validate content and regenerate public/",
+    run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
+      if (commandArgs.length > 0) return 2;
+      const result = await buildSite(options);
+      if (result.issues.length > 0) {
+        reportIssues(result.issues);
+        return 1;
+      }
+      console.log(`built ${result.postCount} post(s) into ${options.outputDir}`);
+      return 0;
+    },
+  },
+  validate: {
+    args: "",
+    description: "validate content without writing files",
+    run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
+      if (commandArgs.length > 0) return 2;
+      const result = await loadPosts(options.contentDir);
+      if (result.issues.length > 0) {
+        reportIssues(result.issues);
+        return 1;
+      }
+      console.log(`content OK (${result.posts.length} published post(s))`);
+      return 0;
+    },
+  },
+  new: {
+    args: "<title>",
+    description: "create a draft in content/",
+    run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
+      const title = commandArgs.join(" ").trim();
+      if (!title) return 2;
+      await createPost(options.contentDir, title);
+      return 0;
+    },
+  },
+} as const;
 
 function printUsage(): void {
   console.error("usage: my-blog <command>\n\ncommands:");
-  for (const command of COMMANDS) {
-    console.error(`  ${`${command.name} ${command.arguments}`.trimEnd().padEnd(20)} ${command.description}`);
+  for (const [name, definition] of Object.entries(COMMANDS)) {
+    const invocation = [name, definition.args].join(" ").trimEnd();
+    console.error(`  ${invocation.padEnd(20)} ${definition.description}`);
   }
 }
 
@@ -60,36 +96,15 @@ export function defaultOptions(): BuildOptions {
 
 export async function runCli(args: string[], options: BuildOptions = defaultOptions()): Promise<number> {
   const [command, ...commandArgs] = args;
-
-  switch (command) {
-    case "build": {
-      if (commandArgs.length > 0) break;
-      const result = await buildSite(options);
-      if (result.issues.length > 0) {
-        reportIssues(result.issues);
-        return 1;
-      }
-      console.log(`built ${result.postCount} post(s) into ${options.outputDir}`);
-      return 0;
-    }
-    case "validate": {
-      if (commandArgs.length > 0) break;
-      const result = await loadPosts(options.contentDir);
-      if (result.issues.length > 0) {
-        reportIssues(result.issues);
-        return 1;
-      }
-      console.log(`content OK (${result.posts.length} published post(s))`);
-      return 0;
-    }
-    case "new": {
-      const title = commandArgs.join(" ").trim();
-      if (!title) break;
-      await createPost(options.contentDir, title);
-      return 0;
-    }
+  const definition =
+    command !== undefined && Object.hasOwn(COMMANDS, command)
+      ? COMMANDS[command as keyof typeof COMMANDS]
+      : undefined;
+  if (!definition) {
+    printUsage();
+    return 2;
   }
-
-  printUsage();
-  return 2;
+  const exitCode = await definition.run(commandArgs, options);
+  if (exitCode === 2) printUsage();
+  return exitCode;
 }

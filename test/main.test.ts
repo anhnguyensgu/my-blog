@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import test from "node:test";
-import { buildSite, COMMANDS, parseMarkdownPost, runCli } from "../src/blog.js";
+import { buildSite, parseMarkdownPost, runCli } from "../src/blog.js";
 
 const VALID_POST = `---
 title: Test Post
@@ -18,15 +18,11 @@ draft: false
 This is **Markdown**.
 `;
 
-test("defines the complete command list", () => {
-  assert.deepEqual(
-    COMMANDS.map(({ name, arguments: commandArguments }) => [name, commandArguments]),
-    [
-      ["build", ""],
-      ["validate", ""],
-      ["new", "<title>"],
-    ],
-  );
+test("usage errors exit with code 2", async () => {
+  const options = { contentDir: "", templateDir: "", outputDir: "" };
+  assert.equal(await runCli([], options), 2);
+  assert.equal(await runCli(["bogus"], options), 2);
+  assert.equal(await runCli(["build", "extra"], options), 2);
 });
 
 test("strictly validates front matter", () => {
