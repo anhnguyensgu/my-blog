@@ -1,5 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
-import * as path from "node:path";
+import { basename, join } from "@std/path";
 import { marked } from "marked";
 
 export const ALLOWED_KEYS = new Set(["title", "date", "tags", "summary", "draft"]);
@@ -137,24 +136,24 @@ function readingTimeMinutes(markdown: string): number {
 }
 
 export async function loadPosts(contentDir: string): Promise<{ posts: Post[]; issues: ValidationIssue[] }> {
-  const entries = await readdir(contentDir, { withFileTypes: true });
-  const files = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => entry.name)
-    .sort();
+  const files: string[] = [];
+  for await (const entry of Deno.readDir(contentDir)) {
+    if (entry.isFile && entry.name.endsWith(".md")) files.push(entry.name);
+  }
+  files.sort();
 
   const posts: Post[] = [];
   const issues: ValidationIssue[] = [];
 
   for (const filename of files) {
-    const slug = path.basename(filename, ".md");
-    const sourcePath = path.join(contentDir, filename);
+    const slug = basename(filename, ".md");
+    const sourcePath = join(contentDir, filename);
     if (!SLUG_PATTERN.test(slug)) {
       issues.push(issue(sourcePath, "filename must use lowercase letters, digits, and single dashes"));
       continue;
     }
 
-    const markdown = await readFile(sourcePath, "utf8");
+    const markdown = await Deno.readTextFile(sourcePath);
     const parsed = parseMarkdownPost(markdown, sourcePath);
     if (!parsed.ok) {
       issues.push(...parsed.issues);

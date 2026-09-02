@@ -1,8 +1,8 @@
-import { runCli } from "./blog.js";
+import { runCli } from "./blog.ts";
 
 try {
-  process.exitCode = await runCli(process.argv.slice(2));
+  Deno.exitCode = await runCli(Deno.args);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+  Deno.exitCode = 1;
 }

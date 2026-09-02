@@ -1,7 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import * as path from "node:path";
-import { SLUG_PATTERN, loadPosts, type ValidationIssue } from "./content.js";
-import { DEFAULT_SITE, buildSite } from "./render.js";
+import { join } from "@std/path";
+import { SLUG_PATTERN, loadPosts, type ValidationIssue } from "./content.ts";
+import { DEFAULT_SITE, buildSite } from "./render.ts";
 
 export interface BuildOptions {
   contentDir: string;
@@ -34,10 +33,10 @@ async function createPost(contentDir: string, title: string): Promise<string> {
   const slug = slugFromTitle(title);
   if (!SLUG_PATTERN.test(slug)) throw new Error(`could not derive a valid slug from '${title}'`);
 
-  await mkdir(contentDir, { recursive: true });
-  const filename = path.join(contentDir, `${slug}.md`);
+  await Deno.mkdir(contentDir, { recursive: true });
+  const filename = join(contentDir, `${slug}.md`);
   const body = `---\ntitle: ${title}\ndate: ${todayString()}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
-  await writeFile(filename, body, { flag: "wx" });
+  await Deno.writeTextFile(filename, body, { createNew: true });
   return filename;
 }
 
@@ -92,11 +91,11 @@ function printUsage(): void {
 }
 
 export function defaultOptions(): BuildOptions {
-  const root = process.cwd();
+  const root = Deno.cwd();
   return {
-    contentDir: path.join(root, "content"),
-    templateDir: path.join(root, "templates"),
-    outputDir: path.join(root, "public"),
+    contentDir: join(root, "content"),
+    templateDir: join(root, "templates"),
+    outputDir: join(root, "public"),
   };
 }
 

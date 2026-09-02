@@ -1,8 +1,8 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import * as path from "node:path";
+import { join } from "@std/path";
+// @deno-types="npm:@types/mustache@^4.2.6"
 import Mustache from "mustache";
-import { loadPosts, type Post, type ValidationIssue } from "./content.js";
-import type { BuildOptions } from "./cli.js";
+import { loadPosts, type Post, type ValidationIssue } from "./content.ts";
+import type { BuildOptions } from "./cli.ts";
 
 export interface SiteConfig {
   site_name: string;
@@ -93,7 +93,7 @@ interface Templates {
 }
 
 async function loadTemplates(templateDir: string): Promise<Templates> {
-  const load = (filename: string) => readFile(path.join(templateDir, filename), "utf8");
+  const load = (filename: string) => Deno.readTextFile(join(templateDir, filename));
   const [layout, index, post, archive, error, postRow, tagBadge] = await Promise.all([
     load("layout.html"),
     load("index.html"),
@@ -249,21 +249,23 @@ export async function buildSite(
   const archiveHtml = renderArchive(templates, posts, site);
   const notFoundHtml = renderNotFound(templates, site);
 
-  await mkdir(options.outputDir, { recursive: true });
-  await rm(path.join(options.outputDir, "posts"), { recursive: true, force: true });
-  await mkdir(path.join(options.outputDir, "posts"), { recursive: true });
+  await Deno.mkdir(options.outputDir, { recursive: true });
+  await Deno.remove(join(options.outputDir, "posts"), { recursive: true }).catch((error: unknown) => {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  });
+  await Deno.mkdir(join(options.outputDir, "posts"), { recursive: true });
 
   for (const page of postPages) {
-    const postDir = path.join(options.outputDir, "posts", page.post.slug);
-    await mkdir(postDir, { recursive: true });
-    await writeFile(path.join(postDir, "index.html"), page.html);
+    const postDir = join(options.outputDir, "posts", page.post.slug);
+    await Deno.mkdir(postDir, { recursive: true });
+    await Deno.writeTextFile(join(postDir, "index.html"), page.html);
   }
 
   await Promise.all([
-    writeFile(path.join(options.outputDir, "index.html"), indexHtml),
-    writeFile(path.join(options.outputDir, "archive.html"), archiveHtml),
-    writeFile(path.join(options.outputDir, "rss.xml"), renderRss(posts, site)),
-    writeFile(path.join(options.outputDir, "404.html"), notFoundHtml),
+    Deno.writeTextFile(join(options.outputDir, "index.html"), indexHtml),
+    Deno.writeTextFile(join(options.outputDir, "archive.html"), archiveHtml),
+    Deno.writeTextFile(join(options.outputDir, "rss.xml"), renderRss(posts, site)),
+    Deno.writeTextFile(join(options.outputDir, "404.html"), notFoundHtml),
   ]);
 
   return { ok: true, postCount: posts.length };
