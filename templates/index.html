@@ -1,9 +1,11 @@
 			<p class="section-kicker">Latest writing</p>
-			<h1 class="page-title">{{home_heading}}</h1>
-			<p class="intro">{{home_intro}}</p>
+			<h1 class="page-title">Notes from the low-level web.</h1>
+			<p class="intro">A running notebook about building a small blog engine in Odin, learning the web from raw TCP upward, and keeping the design readable enough for real study.</p>
 
 			<section class="latest" aria-label="Latest posts">
 				<div class="post-list">
-{{{post_rows}}}
+{{#posts}}
+{{> post-row}}
+{{/posts}}
 				</div>
 			</section>

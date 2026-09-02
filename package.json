@@ -1,0 +1,25 @@
+{
+  "name": "my-blog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc && node dist/src/main.js build",
+    "validate": "tsc && node dist/src/main.js validate",
+    "new": "tsc && node dist/src/main.js new",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test dist/test/*.test.js"
+  },
+  "dependencies": {
+    "marked": "^18.0.11",
+    "mustache": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.6",
+    "@types/node": "^22.20.1",
+    "typescript": "^7.0.2"
+  }
+}

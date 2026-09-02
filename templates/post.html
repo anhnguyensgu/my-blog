@@ -1,6 +1,6 @@
 			<article class="article">
 				<header class="article-header">
-				<p class="breadcrumb"><a href="{{site.home_url}}">Latest</a> / {{tag_path}}</p>
+					<p class="breadcrumb"><a href="{{{site.home_url}}}">Latest</a> / {{tag_path}}</p>
 					<h1 class="article-title">{{title}}</h1>
 					<p class="meta">{{date}} &middot; {{tags}} &middot; {{reading_time}}</p>
 				</header>
@@ -9,8 +9,14 @@
 {{{content_html}}}
 				</div>
 
+{{#navigation}}
 				<nav class="post-nav" aria-label="Post navigation">
-					{{{previous_link}}}
-					{{{next_link}}}
+{{#older}}
+					<a href="{{{url}}}">&#8592; {{title}}</a>
+{{/older}}
+{{#newer}}
+					<a href="{{{url}}}">{{title}} &#8594;</a>
+{{/newer}}
 				</nav>
+{{/navigation}}
 			</article>
