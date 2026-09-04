@@ -1,5 +1,6 @@
-export { parseMarkdownPost, loadPosts } from "./content.ts";
-export type { Post, PostHeader, ValidationIssue, ParseResult } from "./content.ts";
-export { buildSite } from "./render.ts";
+export { loadPosts, parseMarkdownPost } from "./content.ts";
+export type { ParseResult, Post, PostHeader, ValidationIssue } from "./content.ts";
+export { buildSite, DEFAULT_SITE, resolveSiteConfig } from "./render.ts";
 export type { BuildOptions } from "./cli.ts";
+export type { SiteConfig } from "./render.ts";
 export { runCli } from "./cli.ts";

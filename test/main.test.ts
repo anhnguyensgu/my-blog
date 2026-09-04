@@ -1,6 +1,6 @@
-import { assert, assertEquals, assertMatch, assertNotMatch, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertMatch, assertNotMatch, assertRejects, assertThrows } from "@std/assert";
 import { join, resolve } from "@std/path";
-import { buildSite, parseMarkdownPost, runCli } from "../src/blog.ts";
+import { buildSite, DEFAULT_SITE, parseMarkdownPost, resolveSiteConfig, runCli } from "../src/blog.ts";
 import { todayString } from "../src/cli.ts";
 
 const VALID_POST = `---
@@ -46,17 +46,28 @@ Deno.test("strictly validates front matter", () => {
 });
 
 Deno.test("drafts may omit summary, published posts may not", () => {
-  const draftOmitted = parseMarkdownPost("---\ntitle: Draft\ndate: 2026-05-02\ndraft: true\n---\n\nBody\n", "content/draft.md");
+  const draftOmitted = parseMarkdownPost(
+    "---\ntitle: Draft\ndate: 2026-05-02\ndraft: true\n---\n\nBody\n",
+    "content/draft.md",
+  );
   assert(draftOmitted.ok);
   assertEquals(draftOmitted.post.header.draft, true);
 
-  const draftEmpty = parseMarkdownPost("---\ntitle: Draft\ndate: 2026-05-02\nsummary:\ndraft: true\n---\n\nBody\n", "content/draft.md");
+  const draftEmpty = parseMarkdownPost(
+    "---\ntitle: Draft\ndate: 2026-05-02\nsummary:\ndraft: true\n---\n\nBody\n",
+    "content/draft.md",
+  );
   assert(draftEmpty.ok);
   assertEquals(draftEmpty.post.header.summary, "");
 
-  const published = parseMarkdownPost("---\ntitle: Published\ndate: 2026-05-02\ndraft: false\n---\n\nBody\n", "content/published.md");
+  const published = parseMarkdownPost(
+    "---\ntitle: Published\ndate: 2026-05-02\ndraft: false\n---\n\nBody\n",
+    "content/published.md",
+  );
   assert(!published.ok);
-  assertEquals(published.issues.map((problem) => problem.message), ["missing required front-matter key 'summary'"]);
+  assertEquals(published.issues.map((problem) => problem.message), [
+    "missing required front-matter key 'summary'",
+  ]);
 });
 
 Deno.test("new creates a valid draft", async () => {
@@ -163,8 +174,14 @@ Deno.test("renders prev/next navigation between posts", async () => {
   await Deno.mkdir(contentDir);
 
   try {
-    await Deno.writeTextFile(join(contentDir, "older-post.md"), postMarkdown("Older Post", "2026-05-01", "Older summary."));
-    await Deno.writeTextFile(join(contentDir, "newer-post.md"), postMarkdown("Newer Post", "2026-06-01", "Newer summary."));
+    await Deno.writeTextFile(
+      join(contentDir, "older-post.md"),
+      postMarkdown("Older Post", "2026-05-01", "Older summary."),
+    );
+    await Deno.writeTextFile(
+      join(contentDir, "newer-post.md"),
+      postMarkdown("Newer Post", "2026-06-01", "Newer summary."),
+    );
 
     const result = await buildSite({
       contentDir,
@@ -192,8 +209,14 @@ Deno.test("groups the archive by year, newest first", async () => {
   await Deno.mkdir(contentDir);
 
   try {
-    await Deno.writeTextFile(join(contentDir, "old-note.md"), postMarkdown("Old Note", "2025-11-20", "From 2025."));
-    await Deno.writeTextFile(join(contentDir, "new-note.md"), postMarkdown("New Note", "2026-01-15", "From 2026."));
+    await Deno.writeTextFile(
+      join(contentDir, "old-note.md"),
+      postMarkdown("Old Note", "2025-11-20", "From 2025."),
+    );
+    await Deno.writeTextFile(
+      join(contentDir, "new-note.md"),
+      postMarkdown("New Note", "2026-01-15", "From 2026."),
+    );
 
     const result = await buildSite({
       contentDir,
@@ -209,7 +232,10 @@ Deno.test("groups the archive by year, newest first", async () => {
     const y2025 = archiveHtml.indexOf(">2025<");
     const newNote = archiveHtml.indexOf("/posts/new-note/");
     const oldNote = archiveHtml.indexOf("/posts/old-note/");
-    assert(y2026 >= 0 && y2025 >= 0 && newNote >= 0 && oldNote >= 0, "archive must contain both year headings and both post links");
+    assert(
+      y2026 >= 0 && y2025 >= 0 && newNote >= 0 && oldNote >= 0,
+      "archive must contain both year headings and both post links",
+    );
     assert(y2026 < newNote, "the 2026 post must be rendered under the 2026 heading");
     assert(newNote < y2025, "the 2026 group must be rendered before the 2025 group");
     assert(y2025 < oldNote, "the 2025 post must be rendered under the 2025 heading");
@@ -229,8 +255,14 @@ Deno.test("sorts date-descending with slug-ascending tiebreak (smaller slug firs
   await Deno.mkdir(contentDir);
 
   try {
-    await Deno.writeTextFile(join(contentDir, "gamma.md"), postMarkdown("Gamma", "2026-01-01", "Oldest post."));
-    await Deno.writeTextFile(join(contentDir, "alpha.md"), postMarkdown("Alpha", "2026-03-01", "Tied post A."));
+    await Deno.writeTextFile(
+      join(contentDir, "gamma.md"),
+      postMarkdown("Gamma", "2026-01-01", "Oldest post."),
+    );
+    await Deno.writeTextFile(
+      join(contentDir, "alpha.md"),
+      postMarkdown("Alpha", "2026-03-01", "Tied post A."),
+    );
     await Deno.writeTextFile(join(contentDir, "beta.md"), postMarkdown("Beta", "2026-03-01", "Tied post B."));
 
     const result = await buildSite({
@@ -260,8 +292,14 @@ Deno.test("renders complete RSS items", async () => {
   await Deno.mkdir(contentDir);
 
   try {
-    await Deno.writeTextFile(join(contentDir, "rss-one.md"), postMarkdown("RSS One", "2026-05-02", "First summary."));
-    await Deno.writeTextFile(join(contentDir, "rss-two.md"), postMarkdown("RSS Two", "2026-04-02", "Second summary."));
+    await Deno.writeTextFile(
+      join(contentDir, "rss-one.md"),
+      postMarkdown("RSS One", "2026-05-02", "First summary."),
+    );
+    await Deno.writeTextFile(
+      join(contentDir, "rss-two.md"),
+      postMarkdown("RSS Two", "2026-04-02", "Second summary."),
+    );
 
     const result = await buildSite({
       contentDir,
@@ -305,7 +343,10 @@ Deno.test("does not build when any content file is invalid", async () => {
 
   try {
     await Deno.writeTextFile(join(contentDir, "Bad Name.md"), VALID_POST);
-    await Deno.writeTextFile(join(contentDir, "missing-summary.md"), "---\ntitle: Missing\ndate: 2026-01-01\n---\nBody\n");
+    await Deno.writeTextFile(
+      join(contentDir, "missing-summary.md"),
+      "---\ntitle: Missing\ndate: 2026-01-01\n---\nBody\n",
+    );
 
     const result = await buildSite({
       contentDir,
@@ -318,6 +359,216 @@ Deno.test("does not build when any content file is invalid", async () => {
     assertMatch(result.issues[1]?.message ?? "", /summary/);
     await assertRejects(() => Deno.readTextFile(join(outputDir, "index.html")));
   } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("SITE_URL override reaches RSS channel and item links", async () => {
+  const root = await Deno.makeTempDir({ prefix: "my-blog-site-url-" });
+  const contentDir = join(root, "content");
+  const outputDir = join(root, "public");
+  await Deno.mkdir(contentDir);
+
+  try {
+    await Deno.writeTextFile(
+      join(contentDir, "rss-one.md"),
+      postMarkdown("RSS One", "2026-05-02", "First summary."),
+    );
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: resolve("templates"),
+      outputDir,
+    }, resolveSiteConfig("https://example.com"));
+    assertEquals(result, { ok: true, postCount: 1 });
+
+    const rss = await Deno.readTextFile(join(outputDir, "rss.xml"));
+    assertMatch(rss, /<link>https:\/\/example\.com\/<\/link>/);
+    assertMatch(rss, /<link>https:\/\/example\.com\/posts\/rss-one\/<\/link>/);
+    assertNotMatch(rss, /127\.0\.0\.1/);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("resolveSiteConfig serializes from the parsed URL and rejects unsafe parts", () => {
+  assertEquals(resolveSiteConfig("https://example.com").site_url, "https://example.com");
+  assertEquals(resolveSiteConfig("https://example.com/").site_url, "https://example.com");
+  assertEquals(resolveSiteConfig("https://example.com///").site_url, "https://example.com");
+  assertEquals(
+    resolveSiteConfig("  https://example.com/blog/  ").site_url,
+    "https://example.com/blog",
+  );
+  assertEquals(
+    resolveSiteConfig("HTTPS://EXAMPLE.COM/blog/").site_url,
+    "https://example.com/blog",
+  );
+  assertEquals(
+    resolveSiteConfig("https://example.com:8080/blog/").site_url,
+    "https://example.com:8080/blog",
+  );
+
+  assertThrows(() => resolveSiteConfig("not-a-url"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("ftp://example.com"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("//example.com"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("javascript:alert(1)"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig(""), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("   "), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("https://user@example.com/"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("https://user:pass@example.com/"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("https://example.com/blog?x=1"), Error, "SITE_URL");
+  assertThrows(() => resolveSiteConfig("https://example.com/blog#frag"), Error, "SITE_URL");
+
+  assertEquals(resolveSiteConfig(undefined), DEFAULT_SITE);
+});
+
+Deno.test("buildSite normalizes a trailing-slash site_url passed directly", async () => {
+  const root = await Deno.makeTempDir({ prefix: "my-blog-direct-slash-" });
+  const contentDir = join(root, "content");
+  const outputDir = join(root, "public");
+  await Deno.mkdir(contentDir);
+
+  try {
+    await Deno.writeTextFile(
+      join(contentDir, "rss-one.md"),
+      postMarkdown("RSS One", "2026-05-02", "First summary."),
+    );
+
+    const result = await buildSite({
+      contentDir,
+      templateDir: resolve("templates"),
+      outputDir,
+    }, { ...DEFAULT_SITE, site_url: "https://example.com/blog/" });
+    assertEquals(result, { ok: true, postCount: 1 });
+
+    const rss = await Deno.readTextFile(join(outputDir, "rss.xml"));
+    assertMatch(rss, /<link>https:\/\/example\.com\/blog\/<\/link>/);
+    assertMatch(rss, /<link>https:\/\/example\.com\/blog\/posts\/rss-one\/<\/link>/);
+    assertNotMatch(rss, /blog\/\/posts/);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("build via CLI honors path-prefixed SITE_URL with trailing slash", async () => {
+  const root = await Deno.makeTempDir({ prefix: "my-blog-cli-site-url-" });
+  const contentDir = join(root, "content");
+  const outputDir = join(root, "public");
+  await Deno.mkdir(contentDir);
+  const prevSiteUrl = Deno.env.get("SITE_URL");
+  const origError = console.error;
+  const origLog = console.log;
+  const stderr: string[] = [];
+  console.error = (...args: unknown[]) => {
+    stderr.push(args.map(String).join(" "));
+  };
+  console.log = () => {};
+  try {
+    await Deno.writeTextFile(
+      join(contentDir, "rss-one.md"),
+      postMarkdown("RSS One", "2026-05-02", "First summary."),
+    );
+    Deno.env.set("SITE_URL", "https://example.com/blog/");
+    const exitCode = await runCli(["build"], {
+      contentDir,
+      templateDir: resolve("templates"),
+      outputDir,
+    });
+    assertEquals(exitCode, 0);
+    assertEquals(stderr, []);
+    const rss = await Deno.readTextFile(join(outputDir, "rss.xml"));
+    assertMatch(rss, /<link>https:\/\/example\.com\/blog\/<\/link>/);
+    assertMatch(rss, /<link>https:\/\/example\.com\/blog\/posts\/rss-one\/<\/link>/);
+    assertNotMatch(rss, /blog\/\/posts/);
+    assertNotMatch(rss, /example\.com\/\/posts/);
+    assertNotMatch(rss, /127\.0\.0\.1/);
+  } finally {
+    console.error = origError;
+    console.log = origLog;
+    if (prevSiteUrl === undefined) Deno.env.delete("SITE_URL");
+    else Deno.env.set("SITE_URL", prevSiteUrl);
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("build via CLI rejects invalid SITE_URL without writing output", async () => {
+  const invalidValues = [
+    "not-a-url",
+    "ftp://example.com",
+    "https://user:pass@example.com/",
+    "https://example.com/blog?x=1",
+    "https://example.com/blog#frag",
+    "",
+    "   ",
+  ];
+  for (const value of invalidValues) {
+    const root = await Deno.makeTempDir({ prefix: "my-blog-cli-invalid-" });
+    const contentDir = join(root, "content");
+    const outputDir = join(root, "public");
+    await Deno.mkdir(contentDir);
+    const prevSiteUrl = Deno.env.get("SITE_URL");
+    const origError = console.error;
+    const origLog = console.log;
+    const stderr: string[] = [];
+    console.error = (...args: unknown[]) => {
+      stderr.push(args.map(String).join(" "));
+    };
+    console.log = () => {};
+    try {
+      await Deno.writeTextFile(
+        join(contentDir, "rss-one.md"),
+        postMarkdown("RSS One", "2026-05-02", "First summary."),
+      );
+      Deno.env.set("SITE_URL", value);
+      const exitCode = await runCli(["build"], {
+        contentDir,
+        templateDir: resolve("templates"),
+        outputDir,
+      });
+      assertEquals(exitCode, 1, `SITE_URL ${JSON.stringify(value)} must exit 1`);
+      assert(
+        stderr.join("\n").includes("SITE_URL"),
+        `stderr for ${JSON.stringify(value)} must mention SITE_URL, got: ${stderr.join("\n")}`,
+      );
+      await assertRejects(() => Deno.readTextFile(join(outputDir, "rss.xml")));
+    } finally {
+      console.error = origError;
+      console.log = origLog;
+      if (prevSiteUrl === undefined) Deno.env.delete("SITE_URL");
+      else Deno.env.set("SITE_URL", prevSiteUrl);
+      await Deno.remove(root, { recursive: true });
+    }
+  }
+});
+
+Deno.test("build via CLI falls back to localhost preview when SITE_URL is unset", async () => {
+  const root = await Deno.makeTempDir({ prefix: "my-blog-cli-fallback-" });
+  const contentDir = join(root, "content");
+  const outputDir = join(root, "public");
+  await Deno.mkdir(contentDir);
+  const prevSiteUrl = Deno.env.get("SITE_URL");
+  const origError = console.error;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    await Deno.writeTextFile(
+      join(contentDir, "rss-one.md"),
+      postMarkdown("RSS One", "2026-05-02", "First summary."),
+    );
+    Deno.env.delete("SITE_URL");
+    const exitCode = await runCli(["build"], {
+      contentDir,
+      templateDir: resolve("templates"),
+      outputDir,
+    });
+    assertEquals(exitCode, 0);
+    const rss = await Deno.readTextFile(join(outputDir, "rss.xml"));
+    assertMatch(rss, /127\.0\.0\.1/);
+  } finally {
+    console.error = origError;
+    console.log = origLog;
+    if (prevSiteUrl === undefined) Deno.env.delete("SITE_URL");
+    else Deno.env.set("SITE_URL", prevSiteUrl);
     await Deno.remove(root, { recursive: true });
   }
 });

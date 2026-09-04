@@ -1,6 +1,6 @@
 import { join } from "@std/path";
-import { SLUG_PATTERN, loadPosts, type ValidationIssue } from "./content.ts";
-import { DEFAULT_SITE, buildSite } from "./render.ts";
+import { loadPosts, SLUG_PATTERN, type ValidationIssue } from "./content.ts";
+import { buildSite, DEFAULT_SITE, resolveSiteConfig } from "./render.ts";
 
 export interface BuildOptions {
   contentDir: string;
@@ -35,7 +35,8 @@ async function createPost(contentDir: string, title: string): Promise<string> {
 
   await Deno.mkdir(contentDir, { recursive: true });
   const filename = join(contentDir, `${slug}.md`);
-  const body = `---\ntitle: ${title}\ndate: ${todayString()}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
+  const body =
+    `---\ntitle: ${title}\ndate: ${todayString()}\ntags:\nsummary:\ndraft: true\n---\n\nStart writing.\n`;
   await Deno.writeTextFile(filename, body, { createNew: true });
   return filename;
 }
@@ -46,7 +47,14 @@ const COMMANDS = {
     description: "validate content and regenerate public/",
     run: async (commandArgs: string[], options: BuildOptions): Promise<number> => {
       if (commandArgs.length > 0) return 2;
-      const result = await buildSite(options, DEFAULT_SITE);
+      let site = DEFAULT_SITE;
+      try {
+        site = resolveSiteConfig(Deno.env.get("SITE_URL"));
+      } catch (error) {
+        console.error(error instanceof Error ? error.message : error);
+        return 1;
+      }
+      const result = await buildSite(options, site);
       if (!result.ok) {
         reportIssues(result.issues);
         return 1;
@@ -101,10 +109,9 @@ export function defaultOptions(): BuildOptions {
 
 export async function runCli(args: string[], options: BuildOptions = defaultOptions()): Promise<number> {
   const [command, ...commandArgs] = args;
-  const definition =
-    command !== undefined && Object.hasOwn(COMMANDS, command)
-      ? COMMANDS[command as keyof typeof COMMANDS]
-      : undefined;
+  const definition = command !== undefined && Object.hasOwn(COMMANDS, command)
+    ? COMMANDS[command as keyof typeof COMMANDS]
+    : undefined;
   if (!definition) {
     printUsage();
     return 2;

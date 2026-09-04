@@ -24,6 +24,63 @@ export const DEFAULT_SITE: SiteConfig = {
   site_url: "http://127.0.0.1:8080",
 };
 
+/**
+ * Resolve the site config from an optional `SITE_URL` value.
+ *
+ * An undefined value falls back to {@link DEFAULT_SITE} (local preview).
+ * A defined value must be a nonblank absolute http(s) URL without credentials,
+ * query, or fragment. The returned `site_url` is serialized from the parsed
+ * URL (origin plus path prefix) with trailing slashes removed so RSS joins
+ * never contain `//posts/...`.
+ *
+ * @throws {Error} mentioning `SITE_URL` when the value is invalid.
+ */
+export function resolveSiteConfig(siteUrlValue: string | undefined): SiteConfig {
+  if (siteUrlValue === undefined) return DEFAULT_SITE;
+  const trimmed = siteUrlValue.trim();
+  if (trimmed === "") {
+    throw new Error(
+      `invalid SITE_URL ${
+        JSON.stringify(siteUrlValue)
+      }: must be a nonblank absolute http(s) URL (e.g. https://example.com)`,
+    );
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error(
+      `invalid SITE_URL ${
+        JSON.stringify(trimmed)
+      }: must be an absolute http(s) URL (e.g. https://example.com)`,
+    );
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(
+      `invalid SITE_URL ${
+        JSON.stringify(trimmed)
+      }: must be an absolute http(s) URL (e.g. https://example.com)`,
+    );
+  }
+  if (url.username !== "" || url.password !== "") {
+    throw new Error(
+      `invalid SITE_URL ${JSON.stringify(trimmed)}: must not include username or password credentials`,
+    );
+  }
+  if (url.search !== "" || trimmed.includes("?")) {
+    throw new Error(
+      `invalid SITE_URL ${JSON.stringify(trimmed)}: must not include a query string`,
+    );
+  }
+  if (url.hash !== "" || trimmed.includes("#")) {
+    throw new Error(
+      `invalid SITE_URL ${JSON.stringify(trimmed)}: must not include a fragment`,
+    );
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  return { ...DEFAULT_SITE, site_url: `${url.origin}${path}` };
+}
+
 const RSS_MAX_ITEMS = 20;
 
 interface BaseView {
@@ -158,11 +215,11 @@ function renderPostPage(
     content_html: post.bodyHtml,
     ...(older || newer
       ? {
-          navigation: {
-            older: older ? postView(older) : undefined,
-            newer: newer ? postView(newer) : undefined,
-          },
-        }
+        navigation: {
+          older: older ? postView(older) : undefined,
+          newer: newer ? postView(newer) : undefined,
+        },
+      }
       : {}),
   });
 }
@@ -191,8 +248,9 @@ function renderArchive(templates: Templates, posts: Post[], site: SiteConfig): s
 }
 
 function renderRss(posts: Post[], site: SiteConfig): string {
+  const base = site.site_url.replace(/\/+$/, "");
   const items = posts.slice(0, RSS_MAX_ITEMS).map((post) => {
-    const url = `${site.site_url}${post.url}`;
+    const url = `${base}${post.url}`;
     const [year, month, day] = post.header.date.split("-");
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const date = `${day} ${monthNames[Number(month) - 1]} ${year} 00:00:00 GMT`;
@@ -212,7 +270,7 @@ function renderRss(posts: Post[], site: SiteConfig): string {
     '<rss version="2.0">',
     "<channel>",
     `<title>${escapeXml(site.site_title)}</title>`,
-    `<link>${escapeXml(`${site.site_url}/`)}</link>`,
+    `<link>${escapeXml(`${base}/`)}</link>`,
     `<description>${escapeXml(site.site_note)}</description>`,
     ...items,
     "</channel>",
@@ -237,17 +295,18 @@ export async function buildSite(
   options: BuildOptions,
   site: SiteConfig = DEFAULT_SITE,
 ): Promise<BuildResult> {
+  const normalizedSite = { ...site, site_url: site.site_url.replace(/\/+$/, "") };
   const { posts, issues } = await loadPosts(options.contentDir);
   if (issues.length > 0) return { ok: false, issues };
 
   const templates = await loadTemplates(options.templateDir);
   const postPages = posts.map((post, index) => ({
     post,
-    html: renderPostPage(templates, post, posts[index + 1], posts[index - 1], site),
+    html: renderPostPage(templates, post, posts[index + 1], posts[index - 1], normalizedSite),
   }));
-  const indexHtml = renderIndex(templates, posts, site);
-  const archiveHtml = renderArchive(templates, posts, site);
-  const notFoundHtml = renderNotFound(templates, site);
+  const indexHtml = renderIndex(templates, posts, normalizedSite);
+  const archiveHtml = renderArchive(templates, posts, normalizedSite);
+  const notFoundHtml = renderNotFound(templates, normalizedSite);
 
   await Deno.mkdir(options.outputDir, { recursive: true });
   await Deno.remove(join(options.outputDir, "posts"), { recursive: true }).catch((error: unknown) => {
@@ -264,7 +323,7 @@ export async function buildSite(
   await Promise.all([
     Deno.writeTextFile(join(options.outputDir, "index.html"), indexHtml),
     Deno.writeTextFile(join(options.outputDir, "archive.html"), archiveHtml),
-    Deno.writeTextFile(join(options.outputDir, "rss.xml"), renderRss(posts, site)),
+    Deno.writeTextFile(join(options.outputDir, "rss.xml"), renderRss(posts, normalizedSite)),
     Deno.writeTextFile(join(options.outputDir, "404.html"), notFoundHtml),
   ]);
 

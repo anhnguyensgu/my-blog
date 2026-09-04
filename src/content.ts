@@ -170,6 +170,8 @@ export async function loadPosts(contentDir: string): Promise<{ posts: Post[]; is
     });
   }
 
-  posts.sort((left, right) => right.header.date.localeCompare(left.header.date) || left.slug.localeCompare(right.slug));
+  posts.sort((left, right) =>
+    right.header.date.localeCompare(left.header.date) || left.slug.localeCompare(right.slug)
+  );
   return { posts, issues };
 }
