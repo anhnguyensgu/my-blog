@@ -101,8 +101,8 @@ interface IndexView extends BaseView {
 }
 
 interface PostNavigationView {
-  older?: PostRowView | undefined;
-  newer?: PostRowView | undefined;
+  older?: PostRowView;
+  newer?: PostRowView;
 }
 
 interface PostPageView extends BaseView {
@@ -112,7 +112,7 @@ interface PostPageView extends BaseView {
   tag_path: string;
   reading_time: string;
   content_html: string;
-  navigation?: PostNavigationView | undefined;
+  navigation?: PostNavigationView;
 }
 
 interface ArchiveGroupView {
@@ -216,8 +216,8 @@ function renderPostPage(
     ...(older || newer
       ? {
         navigation: {
-          older: older ? postView(older) : undefined,
-          newer: newer ? postView(newer) : undefined,
+          ...(older ? { older: postView(older) } : {}),
+          ...(newer ? { newer: postView(newer) } : {}),
         },
       }
       : {}),

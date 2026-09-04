@@ -1,7 +1,9 @@
-import { runCli } from "./blog.ts";
+import { printUsage, runCli } from "./blog.ts";
 
 try {
-  Deno.exitCode = await runCli(Deno.args);
+  const exitCode = await runCli(Deno.args);
+  if (exitCode === 2) printUsage();
+  Deno.exitCode = exitCode;
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   Deno.exitCode = 1;

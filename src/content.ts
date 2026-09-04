@@ -21,12 +21,25 @@ export interface Post {
   readingMinutes: number;
 }
 
-export interface ValidationIssue {
+export enum IssueKind {
+  Path = "path",
+  Line = "line",
+}
+
+export interface PathIssue {
+  kind: IssueKind.Path;
   path: string;
-  /** 1-based source line, when the issue is attributable to one; omitted for file-level issues. */
-  line?: number;
   message: string;
 }
+
+export interface LineIssue {
+  kind: IssueKind.Line;
+  path: string;
+  line: number;
+  message: string;
+}
+
+export type ValidationIssue = PathIssue | LineIssue;
 
 export interface ParsedPost {
   header: PostHeader;
@@ -37,12 +50,12 @@ export type ParseResult =
   | { ok: true; post: ParsedPost }
   | { ok: false; issues: ValidationIssue[] };
 
-function issue(sourcePath: string, message: string): ValidationIssue {
-  return { path: sourcePath, message };
+function issue(sourcePath: string, message: string): PathIssue {
+  return { kind: IssueKind.Path, path: sourcePath, message };
 }
 
-function issueAt(sourcePath: string, line: number, message: string): ValidationIssue {
-  return { path: sourcePath, line, message };
+function issueAt(sourcePath: string, line: number, message: string): LineIssue {
+  return { kind: IssueKind.Line, path: sourcePath, line, message };
 }
 
 export function validCalendarDate(value: string): boolean {

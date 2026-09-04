@@ -1,5 +1,5 @@
 import { join } from "@std/path";
-import { loadPosts, SLUG_PATTERN, type ValidationIssue } from "./content.ts";
+import { IssueKind, loadPosts, SLUG_PATTERN, type ValidationIssue } from "./content.ts";
 import { buildSite, DEFAULT_SITE, resolveSiteConfig } from "./render.ts";
 
 export interface BuildOptions {
@@ -8,10 +8,18 @@ export interface BuildOptions {
   outputDir: string;
 }
 
+function issueLocation(problem: ValidationIssue): string {
+  switch (problem.kind) {
+    case IssueKind.Line:
+      return `${problem.path}:${problem.line}: ${problem.message}`;
+    case IssueKind.Path:
+      return `${problem.path}: ${problem.message}`;
+  }
+}
+
 function reportIssues(issues: ValidationIssue[]): void {
   for (const problem of issues) {
-    const location = problem.line === undefined ? problem.path : `${problem.path}:${problem.line}`;
-    console.error(`${location}: ${problem.message}`);
+    console.error(issueLocation(problem));
   }
   console.error(`${issues.length} error(s)`);
 }
@@ -41,7 +49,13 @@ async function createPost(contentDir: string, title: string): Promise<string> {
   return filename;
 }
 
-const COMMANDS = {
+interface Command {
+  usage: string;
+  description: string;
+  run: (commandArgs: string[], options: BuildOptions) => Promise<number>;
+}
+
+const COMMANDS: Record<string, Command> = {
   build: {
     usage: "",
     description: "validate content and regenerate public/",
@@ -88,9 +102,9 @@ const COMMANDS = {
       return 0;
     },
   },
-} as const;
+};
 
-function printUsage(): void {
+export function printUsage(): void {
   console.error("usage: my-blog <command>\n\ncommands:");
   for (const [name, definition] of Object.entries(COMMANDS)) {
     const invocation = [name, definition.usage].join(" ").trimEnd();
@@ -109,14 +123,12 @@ export function defaultOptions(): BuildOptions {
 
 export async function runCli(args: string[], options: BuildOptions = defaultOptions()): Promise<number> {
   const [command, ...commandArgs] = args;
-  const definition = command !== undefined && Object.hasOwn(COMMANDS, command)
-    ? COMMANDS[command as keyof typeof COMMANDS]
-    : undefined;
-  if (!definition) {
-    printUsage();
+  if (!command) {
     return 2;
   }
-  const exitCode = await definition.run(commandArgs, options);
-  if (exitCode === 2) printUsage();
-  return exitCode;
+  const definition = COMMANDS[command];
+  if (!definition) {
+    return 2;
+  }
+  return await definition.run(commandArgs, options);
 }

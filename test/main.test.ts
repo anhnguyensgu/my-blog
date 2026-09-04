@@ -1,6 +1,13 @@
 import { assert, assertEquals, assertMatch, assertNotMatch, assertRejects, assertThrows } from "@std/assert";
 import { join, resolve } from "@std/path";
-import { buildSite, DEFAULT_SITE, parseMarkdownPost, resolveSiteConfig, runCli } from "../src/blog.ts";
+import {
+  buildSite,
+  DEFAULT_SITE,
+  IssueKind,
+  parseMarkdownPost,
+  resolveSiteConfig,
+  runCli,
+} from "../src/blog.ts";
 import { todayString } from "../src/cli.ts";
 
 const VALID_POST = `---
@@ -34,15 +41,22 @@ Deno.test("strictly validates front matter", () => {
     "content/bad.md",
   );
   assert(!invalid.ok);
-  assertEquals(
-    invalid.issues.map((problem) => problem.message),
-    [
-      "unknown front-matter key 'tag'",
-      "missing required front-matter key 'summary'",
-      "invalid date '2026-02-30', expected YYYY-MM-DD",
-      "draft must be 'true' or 'false'",
-    ],
-  );
+  assertEquals(invalid.issues, [
+    { kind: IssueKind.Line, path: "content/bad.md", line: 4, message: "unknown front-matter key 'tag'" },
+    {
+      kind: IssueKind.Line,
+      path: "content/bad.md",
+      line: 1,
+      message: "missing required front-matter key 'summary'",
+    },
+    {
+      kind: IssueKind.Line,
+      path: "content/bad.md",
+      line: 3,
+      message: "invalid date '2026-02-30', expected YYYY-MM-DD",
+    },
+    { kind: IssueKind.Line, path: "content/bad.md", line: 5, message: "draft must be 'true' or 'false'" },
+  ]);
 });
 
 Deno.test("drafts may omit summary, published posts may not", () => {
@@ -65,8 +79,13 @@ Deno.test("drafts may omit summary, published posts may not", () => {
     "content/published.md",
   );
   assert(!published.ok);
-  assertEquals(published.issues.map((problem) => problem.message), [
-    "missing required front-matter key 'summary'",
+  assertEquals(published.issues, [
+    {
+      kind: IssueKind.Line,
+      path: "content/published.md",
+      line: 1,
+      message: "missing required front-matter key 'summary'",
+    },
   ]);
 });
 
@@ -355,8 +374,14 @@ Deno.test("does not build when any content file is invalid", async () => {
     });
     assert(!result.ok);
     assertEquals(result.issues.length, 2);
-    assertMatch(result.issues[0]?.message ?? "", /filename/);
-    assertMatch(result.issues[1]?.message ?? "", /summary/);
+    const filenameIssue = result.issues[0];
+    const summaryIssue = result.issues[1];
+    assert(filenameIssue);
+    assert(summaryIssue);
+    assertEquals(filenameIssue.kind, IssueKind.Path);
+    assertMatch(filenameIssue.message, /filename/);
+    assertEquals(summaryIssue.kind, IssueKind.Line);
+    assertMatch(summaryIssue.message, /summary/);
     await assertRejects(() => Deno.readTextFile(join(outputDir, "index.html")));
   } finally {
     await Deno.remove(root, { recursive: true });
