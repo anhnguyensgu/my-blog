@@ -1,0 +1,27 @@
+{
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.19"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "tasks": {
+    "dev": "deno run --allow-read=content,assets,dist --allow-write=dist --allow-net=127.0.0.1 --allow-env=PORT src/main.ts dev",
+    "build": "deno run --allow-read=content,assets,dist --allow-write=dist --allow-env=SITE_URL src/main.ts build",
+    "validate": "deno run --allow-read=content src/main.ts validate",
+    "new": "deno run --allow-read=content --allow-write=content src/main.ts new",
+    "check": "deno check src/ test/",
+    "test": "deno test --allow-read --allow-write --allow-env=SITE_URL",
+    "fmt": "deno fmt",
+    "lint": "deno lint"
+  },
+  "fmt": {
+    "lineWidth": 110,
+    "exclude": ["dist", "content"]
+  },
+  "lint": {
+    "exclude": ["dist"]
+  }
+}
