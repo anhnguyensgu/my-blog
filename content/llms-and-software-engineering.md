@@ -14,6 +14,16 @@ Software engineering is more interesting than ever. The losers show up claiming 
 
 I used to write every line myself. Slow, sure, but I understood all of it, because I had to think through each line to type it.
 
+## Education
+
+AI in general, and LLMs in particular, give me an advantage: education.
+
+I can learn things quickly. Don't get me wrong, I don't claim I'll be a master with AI. It just gives me a good start on most things.
+
+- Investigation and troubleshooting
+- A teacher who knows everything but teaching
+- A second thought when I'm brainstorming
+
 ## After
 
 Now I'm a father and I just don't have time to sit and type code. So I let the agent get the task done, then I review its shit.
