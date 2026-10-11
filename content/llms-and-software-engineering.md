@@ -8,6 +8,10 @@ draft: true
 
 ## Before
 
+I'm lucky to have seen the software industry evolve from coding by hand to agentic coding. I've been an engineer for a decade, starting out and growing into a senior at KMS Technology, and I'm still learning. That's enough selling myself.
+
+Software engineering is more interesting than ever. The losers show up claiming AI is replacing their jobs, the winners share what they've built, and the scammers push FOMO, which reminds me of crypto. Here's how I actually work now.
+
 I used to write every line myself. Slow, sure, but I understood all of it, because I had to think through each line to type it.
 
 ## After
