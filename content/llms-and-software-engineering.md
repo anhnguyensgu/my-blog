@@ -22,7 +22,7 @@ I can learn things quickly. Don't get me wrong, I don't claim I'll be a master w
 
 - Investigation and troubleshooting
 - A teacher who knows everything but teaching
-- A second thought when I'm brainstorming
+- A second opinion when I'm brainstorming
 
 ## After
 
