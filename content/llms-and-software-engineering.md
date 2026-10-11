@@ -1,32 +1,28 @@
 ---
-title: LLMs and Software Engineering
-date: 2026-10-06
+title: Before and After AI
+date: 2026-10-11
 tags: llm, software-engineering
-summary: What changes, and what stays the same, when an LLM sits inside the everyday loop of writing software.
+summary: I stopped typing most of my code, but I never stopped reading it. A short note on working with agents as a father with little spare time.
 draft: true
 ---
 
-Opening hook: one concrete moment where an LLM helped, or failed, while building something real. Replace this with your story.
+## Before
 
-## What I Actually Use It For
+I used to write every line myself. Slow, but I understood all of it, because I had to think through each line to type it.
 
-List the tasks where an LLM earns its place in your workflow: boilerplate, unfamiliar APIs, test scaffolding, refactors, reading old code. Be specific, with one example each.
+## After
 
-## Where It Falls Down
+Now I have a kid and very little time. I rarely sit down and type code anymore. I describe the task, let an agent do it, and spend my time reviewing what comes back.
 
-The failure modes you have hit: confident wrong answers, invented APIs, changes that compile but miss the intent. Include one real example.
+That review is the job. The first result is rarely the one I ship. I read the diff, find what is wrong or wasteful, and push back until it is improved and optimized. The agent is fast. I am the one who knows what "good" looks like.
 
-## What Stays the Same
+## The Trap
 
-Reading the code, owning the design, writing tests, reviewing the diff. The model changes who types, not who is responsible.
+> [!WARNING]
+> AI without understanding the code is rotting your brain.
 
-> [!NOTE]
-> Keep this section honest. Readers trust a post that admits what did not work.
+If you accept output you do not understand, you are not saving time. You are borrowing it. The first bug in code you cannot read will cost more than everything you saved. Worse, each time you skip the thinking, the skill that lets you review gets weaker.
 
-## How I Verify the Output
+## My Rule
 
-Your checklist: tests first, small diffs, run the code, read every line before merging.
-
-## Closing
-
-One takeaway a reader can use tomorrow.
+Delegate the typing, never the understanding. If I cannot explain a change, it does not get merged.
